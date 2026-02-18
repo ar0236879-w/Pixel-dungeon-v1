@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pixel Dungeon Escape - Update</title>
+    <style>
+        /* 
+         * STYLE.CSS - RESPONSIVE & OPTIMIZED
+         */
+        
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #111;
+            --ui-bg: rgba(0, 0, 0, 0.8);
+            --accent: #f1c40f;
+            --text: #ecf0f1;
+            --danger: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* Pastikan pixel art tetap tajam */
+            image-rendering: pixelated; 
+            image-rendering: crisp-edges;
+        }
+
+        /* UI Overlay System */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            padding-top: max(10px, env(safe-area-inset-top));
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .stats-box {
+            background: var(--ui-bg);
+            padding: 8px;
+            border: 2px solid #555;
+            font-size: 10px;
+            line-height: 1.6;
+            border-radius: 4px;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .inventory-bar {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .inv-slot {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #555;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .inv-slot.active {
+            border-color: var(--accent);
+            background: rgba(241, 196, 15, 0.2);
+        }
+
+        /* Mini Map Responsive */
+        #minimap-container {
+            position: absolute;
+            top: max(10px, env(safe-area-inset-top));
+            right: 10px;
+            border: 2px solid #fff;
+            background: rgba(0,0,0,0.6);
+            opacity: 0.9;
+            pointer-events: auto;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        #minimap { display: block; }
+
+        /* Menus */
+        .menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            color: var(--accent);
+            font-size: 20px; 
+            margin-bottom: 40px;
+            text-shadow: 4px 4px 0 #000;
+            line-height: 1.4;
+        }
+
+        button {
+            background: #333;
+            color: #fff;
+            border: 3px solid #fff;
+            padding: 15px 20px;
+            font-family: inherit;
+            font-size: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            text-transform: uppercase;
+            width: 100%;
+            max-width: 300px;
+            border-radius: 4px;
+            box-shadow: 0 4px 0 #000;
+            transition: transform 0.1s;
+        }
+
+        button:active { transform: translateY(4px); box-shadow: 0 0 0 #000; }
+        button.danger { border-color: var(--danger); }
+        button.danger:active { background: var(--danger); }
+
+        /* Virtual Joystick & Action Button */
+        #joystick-zone, #action-btn { pointer-events: auto; touch-action: none; display: none; }
+
+        #joystick-zone {
+            position: absolute;
+            bottom: calc(30px + env(safe-area-inset-bottom)); 
+            left: 20px;
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 50%;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 60px; height: 60px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #action-btn {
+            position: absolute;
+            bottom: calc(40px + env(safe-area-inset-bottom));
+            right: 20px;
+            width: 90px; height: 90px;
+            background: rgba(231, 76, 60, 0.6);
+            border: 4px solid rgba(255,255,255,0.8);
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+            transition: transform 0.05s, background 0.05s;
+        }
+        
+        /* Efek visual saat tombol ditekan */
+        #action-btn:active, #action-btn.pressed {
+            background: #c0392b;
+            transform: scale(0.9);
+            box-shadow: 0 0 5px rgba(231, 76, 60, 0.8);
+        }
+
+        #toast {
+            position: absolute;
+            top: 20%; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            border: 1px solid #fff;
+            white-space: nowrap;
+            z-index: 200;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 18px; }
+            .stats-box { font-size: 8px; padding: 5px; }
+            .inv-slot { width: 24px; height: 24px; font-size: 12px; }
+            #minimap { width: 60px; height: 60px; } 
+            #joystick-zone, #action-btn { display: block; }
+        }
+
+        @media (min-width: 769px) {
+            #game-container { max-width: 1024px; max-height: 768px; margin: 0 auto; border: 2px solid #333; }
+            /* Petunjuk keyboard untuk desktop */
+            .desktop-hint {
+                position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+                font-size: 8px; color: #777; text-align: center; width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI HUD Layer -->
+    <div id="ui-layer" class="ui-layer hidden">
+        <div class="hud-top">
+            <div class="stats-box">
+                <div>LVL: <span id="ui-level">1</span></div>
+                <div style="color:var(--danger)">HP: <span id="ui-hp">100</span></div>
+                <div style="color:var(--accent)">STM: <span id="ui-stamina">100</span></div>
+                <div class="inventory-bar" id="ui-inventory"></div>
+            </div>
+        </div>
+        
+        <div id="minimap-container">
+            <canvas id="minimap" width="100" height="100"></canvas>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="joystick-zone"><div id="joystick-knob"></div></div>
+        <div id="action-btn">ATK</div>
+        
+        <div class="desktop-hint hidden" id="desk-hint">
+            [WASD/Arrows] Move &nbsp;|&nbsp; [SPACE] Attack
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast">Game Saved</div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-screen">
+        <h1>PIXEL DUNGEON<br><span style="font-size:0.6em; color:#fff">ESCAPE</span></h1>
+        <button id="btn-start">Start New Game</button>
+        <button id="btn-continue">Continue</button>
+        <button id="btn-about">About Developer</button>
+        <button id="btn-reset" class="danger">Reset Save</button>
+    </div>
+
+    <!-- Game Over / Win Screen -->
+    <div id="end-screen" class="menu-screen hidden">
+        <h1 id="end-title">GAME OVER</h1>
+        <p id="end-msg" style="font-size:10px; margin-bottom:20px; max-width: 80%;">You fell in the depths of the dungeon.</p>
+        <button onclick="location.reload()">Back to Menu</button>
+    </div>
+</div>
+
+<script>
+// --- ASSET GAMBAR (UPDATED URLS) ---
+// Memuat gambar referensi yang diberikan
+
+// Gambar Player: player pixel (1).png
+const IMG_PLAYER = new Image();
+IMG_PLAYER.src = "https://z-cdn-media.chatglm.cn/files/428ea952-ad5f-4f6a-a297-be8f2d96bd49.png?auth_key=1871372164-8d2136ee062c4655ad5cf8af37f9d5fe-0-cd39aaf62c6e9bffff345696e0087f46";
+
+// Gambar Monster: monster pixel (1).png
+const IMG_MONSTER = new Image();
+IMG_MONSTER.src = "https://z-cdn-media.chatglm.cn/files/6c0d9356-bb59-4de1-ba85-7f566375f4f3.png?auth_key=1871372164-f764304dc39941d6b66f73294cdd85fb-0-23cb52c61cf40980fe6e1a4381d1889f";
+
+
+// --- KONSTANTA GAME ---
+const TILE_SIZE = 32;
+const COLS = 25;
+const ROWS = 19; 
+
+const TILE = { WALL: 0, FLOOR: 1, DOOR: 2, EXIT: 3, KEY: 4, POTION: 5, STAMINA: 6 };
+const ITEMS = { [TILE.KEY]: { name: 'Key', icon: '🗝️' }, [TILE.POTION]: { name: 'Potion', icon: '🧪' }, [TILE.STAMINA]: { name: 'Energy', icon: '⚡' } };
+
+const RNG = {
+    range: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
+    pick: (arr) => arr[Math.floor(Math.random() * arr.length)],
+    oneIn: (n) => Math.random() < (1/n)
+};
+
+const Utils = {
+    rectIntersect: (r1, r2) => !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y),
+    dist: (e1, e2) => Math.sqrt((e1.x - e2.x)**2 + (e1.y - e2.y)**2)
+};
+
+// --- AUDIO SYSTEM ---
+class AudioSystem {
+    constructor() { this.ctx = null; this.enabled = false; }
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.enabled = true;
+        } else if (this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    playTone(freq, type, duration, vol = 0.1) {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+    sfxAttack() { this.playTone(150, 'square', 0.1, 0.1); setTimeout(() => this.playTone(100, 'sawtooth', 0.1, 0.1), 50); }
+    sfxHit() { this.playTone(100, 'sawtooth', 0.2, 0.2); }
+    sfxDoor() { this.playTone(400, 'square', 0.1); setTimeout(()=>this.playTone(600, 'square', 0.2), 100); }
+    sfxPickup() { this.playTone(800, 'sine', 0.1, 0.1); setTimeout(()=>this.playTone(1200, 'sine', 0.2), 100); }
+    sfxDie() { this.playTone(300, 'sawtooth', 0.5); setTimeout(()=>this.playTone(200, 'sawtooth', 0.5), 200); setTimeout(()=>this.playTone(100, 'sawtooth', 0.8), 400); }
+}
+const Audio = new AudioSystem();
+
+// --- INPUT SYSTEM ---
+class InputHandler {
+    constructor() {
+        this.keys = {};
+        this.actionPressed = false;
+        this.joystick = { x: 0, y: 0, active: false };
+        
+        // Keyboard Support
+        window.addEventListener('keydown', e => this.keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
+        window.addEventListener('keydown', e => { if (e.code === 'Space') this.actionPressed = true; });
+        window.addEventListener('keyup', e => { if (e.code === 'Space') this.actionPressed = false; });
+
+        // Setup Joystick
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+        let startX, startY;
+        
+        const handleJoyStart = (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            this.joystick.active = true;
+        };
+        
+        const handleJoyMove = (e) => {
+            e.preventDefault();
+            if (!this.joystick.active) return;
+            const touch = e.changedTouches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            const distance = Math.min(40, Math.sqrt(dx*dx + dy*dy)); 
+            const angle = Math.atan2(dy, dx);
+            const jx = Math.cos(angle) * distance;
+            const jy = Math.sin(angle) * distance;
+            joyKnob.style.transform = `translate(calc(-50% + ${jx}px), calc(-50% + ${jy}px))`;
+            this.joystick.x = jx / 40; 
+            this.joystick.y = jy / 40;
+        };
+
+        const resetJoy = (e) => { e.preventDefault(); this.joystick.active = false; this.joystick.x = 0; this.joystick.y = 0; joyKnob.style.transform = `translate(-50%, -50%)`; };
+
+        joyZone.addEventListener('touchstart', handleJoyStart, {passive: false});
+        joyZone.addEventListener('touchmove', handleJoyMove, {passive: false});
+        joyZone.addEventListener('touchend', resetJoy);
+        joyZone.addEventListener('touchcancel', resetJoy);
+
+        // Tombol Attack Action (Mobile & Mouse)
+        const actBtn = document.getElementById('action-btn');
+        
+        // Touch Start
+        actBtn.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); 
+            this.actionPressed = true; 
+            actBtn.classList.add('pressed'); 
+        }, {passive: false});
+        
+        // Touch End
+        actBtn.addEventListener('touchend', (e) => { 
+            e.preventDefault(); 
+            this.actionPressed = false; 
+            actBtn.classList.remove('pressed');
+        });
+
+        // Mouse Down (Untuk testing desktop)
+        actBtn.addEventListener('mousedown', (e) => { 
+            e.preventDefault(); 
+            this.actionPressed = true; 
+            actBtn.classList.add('pressed');
+        });
+        
+        // Mouse Up
+        actBtn.addEventListener('mouseup', (e) => { 
+            e.preventDefault(); 
+            this.actionPressed = false; 
+            actBtn.classList.remove('pressed');
+        });
+        
+        // Mouse Leave (Jika kursor keluar tombol saat ditekan)
+        actBtn.addEventListener('mouseleave', (e) => {
+            e.preventDefault();
+            this.actionPressed = false;
+            actBtn.classList.remove('pressed');
+        });
+    }
+
+    getAxis() {
+        let x = 0, y = 0;
+        if (this.keys['w'] || this.keys['arrowup']) y = -1;
+        if (this.keys['s'] || this.keys['arrowdown']) y = 1;
+        if (this.keys['a'] || this.keys['arrowleft']) x = -1;
+        if (this.keys['d'] || this.keys['arrowright']) x = 1;
+        if (this.joystick.active) { x = this.joystick.x; y = this.joystick.y; }
+        if (!this.joystick.active && x !== 0 && y !== 0) { const len = Math.sqrt(x*x + y*y); x /= len; y /= len; }
+        return { x, y };
+    }
+}
+
+// --- MAP SYSTEM ---
+class MapSystem {
+    constructor(width, height) { this.width = width; this.height = height; this.data = []; this.rooms = []; }
+    generate(level) {
+        this.data = new Array(this.width * this.height).fill(TILE.WALL);
+        this.rooms = [];
+        const maxRooms = 8 + Math.floor(level / 2);
+        let attempts = 0;
+        while (this.rooms.length < maxRooms && attempts < 100) {
+            const w = RNG.range(4, 8), h = RNG.range(4, 8);
+            const x = RNG.range(1, this.width - w - 1), y = RNG.range(1, this.height - h - 1);
+            const newRoom = { x, y, w, h };
+            let overlap = false;
+            for (let r of this.rooms) if (Utils.rectIntersect({x: x-1, y: y-1, w: w+2, h: h+2}, {x: r.x, y: r.y, w: r.w, h: r.h})) { overlap = true; break; }
+            if (!overlap) {
+                this.createRoom(newRoom);
+                if (this.rooms.length > 0) this.connectRooms(this.rooms[this.rooms.length - 1], newRoom);
+                this.rooms.push(newRoom);
+            }
+            attempts++;
+        }
+        const lastRoom = this.rooms[this.rooms.length - 1];
+        this.setTile(lastRoom.x + Math.floor(lastRoom.w/2), lastRoom.y + Math.floor(lastRoom.h/2), TILE.DOOR);
+        this.spawns = [];
+        for (let i = 1; i < this.rooms.length; i++) {
+            const r = this.rooms[i];
+            if (RNG.oneIn(2) || level > 2) this.spawns.push({ type: 'enemy', x: (r.x + Math.floor(r.w/2)) * TILE_SIZE, y: (r.y + Math.floor(r.h/2)) * TILE_SIZE });
+            if (RNG.oneIn(3)) this.setTile(RNG.range(r.x+1, r.x+r.w-2), RNG.range(r.y+1, r.y+r.h-2), RNG.pick([TILE.POTION, TILE.STAMINA]));
+        }
+        const keyRoom = this.rooms[RNG.range(1, this.rooms.length - 2)];
+        this.setTile(keyRoom.x + Math.floor(keyRoom.w/2), keyRoom.y + Math.floor(keyRoom.h/2), TILE.KEY);
+        return { start: this.rooms[0], spawns: this.spawns };
+    }
+    createRoom(r) { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) this.data[y * this.width + x] = TILE.FLOOR; }
+    connectRooms(r1, r2) {
+        const c1 = { x: Math.floor(r1.x + r1.w/2), y: Math.floor(r1.y + r1.h/2) };
+        const c2 = { x: Math.floor(r2.x + r2.w/2), y: Math.floor(r2.y + r2.h/2) };
+        if (RNG.oneIn(2)) { this.createCorridorH(c1.x, c2.x, c1.y); this.createCorridorV(c1.y, c2.y, c2.x); }
+        else { this.createCorridorV(c1.y, c2.y, c1.x); this.createCorridorH(c1.x, c2.x, c2.y); }
+    }
+    createCorridorH(x1, x2, y) { for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) this.data[y * this.width + x] = TILE.FLOOR; }
+    createCorridorV(y1, y2, x) { for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) this.data[y * this.width + x] = TILE.FLOOR; }
+    getTile(x, y) { if (x < 0 || x >= this.width || y < 0 || y >= this.height) return TILE.WALL; return this.data[y * this.width + x]; }
+    setTile(x, y, val) { if (x >= 0 && x < this.width && y >= 0 && y < this.height) this.data[y * this.width + x] = val; }
+    isSolid(x, y) { const tx = Math.floor(x / TILE_SIZE), ty = Math.floor(y / TILE_SIZE); return this.getTile(tx, ty) === TILE.WALL; }
+}
+
+// --- ENTITY SYSTEM ---
+class Entity { constructor(x, y, color) { this.x = x; this.y = y; this.w = TILE_SIZE - 4; this.h = TILE_SIZE - 4; this.color = color; this.dead = false; } }
+
+class Player extends Entity {
+    constructor(x, y) { super(x, y, '#3498db'); this.speed = 200; this.maxHp = 100; this.hp = 100; this.maxStamina = 100; this.stamina = 100; this.inventory = []; this.facing = { x: 0, y: 1 }; this.attackCooldown = 0; this.invincibleTimer = 0; }
+    
+    // Menggambar Player dengan Gambar
+    draw(ctx, camX, camY) {
+        if (this.dead) return;
+        
+        // Cek jika gambar sudah siap (loaded)
+        if (IMG_PLAYER.complete && IMG_PLAYER.naturalHeight !== 0) {
+            ctx.drawImage(IMG_PLAYER, this.x - camX, this.y - camY, this.w, this.h);
+        } else {
+            // Fallback kotak warna biru jika gambar belum termuat
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(this.x - camX + this.w - 4, this.y - camY + 4, 4, this.h - 4);
+        }
+    }
+
+    update(dt, input, map, enemies) {
+        if (this.hp <= 0) return;
+        if (this.stamina < this.maxStamina) this.stamina += 10 * dt;
+        const axis = input.getAxis(); let dx = axis.x * this.speed * dt, dy = axis.y * this.speed * dt;
+        if (dx !== 0 || dy !== 0) {
+            this.facing = { x: dx > 0 ? 1 : dx < 0 ? -1 : 0, y: dy > 0 ? 1 : dy < 0 ? -1 : 0 };
+            if (!map.isSolid(this.x + dx, this.y) && !map.isSolid(this.x + dx + this.w, this.y) && !map.isSolid(this.x + dx, this.y + this.h) && !map.isSolid(this.x + dx + this.w, this.y + this.h)) this.x += dx;
+            if (!map.isSolid(this.x, this.y + dy) && !map.isSolid(this.x + this.w, this.y + dy) && !map.isSolid(this.x, this.y + dy + this.h) && !map.isSolid(this.x + this.w, this.y + dy + this.h)) this.y += dy;
+        }
+        if (this.attackCooldown > 0) this.attackCooldown -= dt;
+        if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
+        
+        // Logika Attack
+        if (input.actionPressed && this.attackCooldown <= 0) { 
+            this.attack(enemies); 
+        }
+
+        const cx = Math.floor((this.x + this.w/2) / TILE_SIZE), cy = Math.floor((this.y + this.h/2) / TILE_SIZE);
+        const tile = map.getTile(cx, cy);
+        if ((tile === TILE.POTION || tile === TILE.STAMINA) && this.inventory.length < 3) { map.setTile(cx, cy, TILE.FLOOR); this.addItem(tile); Audio.sfxPickup(); } 
+        else if (tile === TILE.KEY) { map.setTile(cx, cy, TILE.FLOOR); this.addItem(TILE.KEY); Audio.sfxPickup(); } 
+        else if (tile === TILE.DOOR) { if (this.hasItem(TILE.KEY)) return 'complete'; else Game.ui.showToast("Need a Key!"); }
+        return null;
+    }
+    
+    attack(enemies) {
+        this.attackCooldown = 0.4; // Kecepatan serang
+        this.stamina -= 10; 
+        if (this.stamina < 0) this.stamina = 0; 
+        
+        Audio.sfxAttack();
+        
+        // Hitbox serangan berdasarkan arah hadap
+        const range = 45; 
+        const hitRect = { 
+            x: this.x + this.w/2 + (this.facing.x * 15) - range/2, 
+            y: this.y + this.h/2 + (this.facing.y * 15) - range/2, 
+            w: range, 
+            h: range 
+        };
+        
+        let hitSomething = false;
+        enemies.forEach(e => { 
+            if (!e.dead && Utils.rectIntersect(hitRect, e)) { 
+                e.takeDamage(35); // Damage attack
+                Game.ui.particles.create(e.x + e.w/2, e.y + e.h/2, '#e74c3c'); 
+                hitSomething = true;
+            } 
+        });
+        
+        // Efek partikel serangan (slash effect)
+        if (!hitSomething) {
+             Game.ui.particles.create(this.x + this.w/2 + (this.facing.x * 20), this.y + this.h/2 + (this.facing.y * 20), '#fff');
+        }
+    }
+    
+    takeDamage(amount) { if (this.invincibleTimer > 0) return; this.hp -= amount; this.invincibleTimer = 1.0; Audio.sfxHit(); Game.ui.particles.create(this.x + this.w/2, this.y + this.h/2, '#fff'); if (this.hp <= 0) { Audio.sfxDie(); Game.gameOver(); } }
+    addItem(type) { if (this.inventory.length < 3) { this.inventory.push(type); Game.ui.updateInventory(); } }
+    hasItem(type) { return this.inventory.includes(type); }
+    useItem(index) {
+        const item = this.inventory[index]; if (!item) return;
+        if (item === TILE.POTION) this.hp = Math.min(this.hp + 30, this.maxHp);
+        else if (item === TILE.STAMINA) this.stamina = Math.min(this.stamina + 50, this.maxStamina);
+        else if (item === TILE.KEY) return;
+        this.inventory.splice(index, 1); Game.ui.updateInventory(); Audio.sfxPickup();
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, y, level) { super(x, y, '#e74c3c'); this.speed = 80 + (level * 5); this.hp = 40 + (level * 10); this.state = 'IDLE'; this.detectRange = 200; this.attackRange = 30; this.attackTimer = 0; }
+    
+    // Menggambar Monster dengan Gambar
+    draw(ctx, camX, camY) {
+        if (this.dead) return;
+
+        if (IMG_MONSTER.complete && IMG_MONSTER.naturalHeight !== 0) {
+            ctx.drawImage(IMG_MONSTER, this.x - camX, this.y - camY, this.w, this.h);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(this.x - camX + this.w - 4, this.y - camY + 4, 4, this.h - 4);
+        }
+    }
+
+    update(dt, player, map) {
+        if (this.dead || player.hp <= 0) return;
+        const dist = Utils.dist(this, player);
+        if (dist < this.detectRange) this.state = 'CHASE'; else this.state = 'IDLE';
+        if (this.state === 'CHASE') {
+            const dx = player.x - this.x, dy = player.y - this.y, len = Math.sqrt(dx*dx + dy*dy);
+            if (len > 0) {
+                const mx = (dx / len) * this.speed * dt, my = (dy / len) * this.speed * dt;
+                if (!map.isSolid(this.x + mx, this.y)) this.x += mx;
+                if (!map.isSolid(this.x, this.y + my)) this.y += my;
+            }
+            if (dist < this.attackRange && this.attackTimer <= 0) { player.takeDamage(10); this.attackTimer = 1.5; }
+        }
+        if (this.attackTimer > 0) this.attackTimer -= dt;
+    }
+    takeDamage(amount) { this.hp -= amount; if (this.hp <= 0) this.dead = true; }
+}
+
+class ParticleSystem {
+    constructor() { this.particles = []; }
+    create(x, y, color) { for(let i=0; i<8; i++) this.particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * 100, vy: (Math.random() - 0.5) * 100, life: 0.5, color: color }); }
+    update(dt) { for (let i = this.particles.length - 1; i >= 0; i--) { let p = this.particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; if (p.life <= 0) this.particles.splice(i, 1); } }
+    draw(ctx, camX, camY) { this.particles.forEach(p => { ctx.globalAlpha = p.life / 0.5; ctx.fillStyle = p.color; ctx.fillRect(p.x - camX, p.y - camY, 4, 4); }); ctx.globalAlpha = 1.0; }
+}
+
+// --- GAME ENGINE ---
+class GameEngine {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.minimapCanvas = document.getElementById('minimap');
+        this.mmCtx = this.minimapCanvas.getContext('2d');
+        
+        this.resize(); 
+        window.addEventListener('resize', () => this.resize());
+
+        this.input = new InputHandler();
+        this.ui = new UIManager(this);
+        this.lastTime = 0;
+        this.state = 'MENU';
+        this.level = 1;
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        // Tampilkan hint keyboard jika desktop
+        if(window.innerWidth > 768) {
+            document.getElementById('desk-hint').classList.remove('hidden');
+        } else {
+            document.getElementById('desk-hint').classList.add('hidden');
+        }
+    }
+
+    init() {
+        const save = localStorage.getItem('pixelDungeonSave');
+        document.getElementById('btn-continue').style.display = save ? 'block' : 'none';
+        requestAnimationFrame(t => this.loop(t));
+    }
+
+    startNewGame() { this.level = 1; this.player = new Player(0, 0); this.startLevel(); }
+    continueGame() {
+        const save = JSON.parse(localStorage.getItem('pixelDungeonSave'));
+        if (save) { this.level = save.level; this.player = new Player(save.playerX, save.playerY); this.player.hp = save.hp; this.player.inventory = save.inventory; this.startLevel(true); }
+    }
+    startLevel(loadMode = false) {
+        this.map = new MapSystem(COLS, ROWS);
+        const genData = this.map.generate(this.level);
+        if (!loadMode) {
+            const start = genData.start;
+            this.player.x = (start.x + Math.floor(start.w/2)) * TILE_SIZE;
+            this.player.y = (start.y + Math.floor(start.h/2)) * TILE_SIZE;
+            this.player.inventory = [];
+        }
+        this.enemies = genData.spawns.map(s => new Enemy(s.x, s.y, this.level));
+        this.ui.particles = new ParticleSystem();
+        this.camera = { x: 0, y: 0 };
+        this.state = 'PLAYING';
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+        document.getElementById('ui-layer').classList.remove('hidden');
+        this.ui.updateHUD(); this.ui.updateInventory();
+        if (!loadMode) Audio.sfxDoor();
+    }
+    saveGame() {
+        const data = { level: this.level, playerX: this.player.x, playerY: this.player.y, hp: this.player.hp, inventory: this.player.inventory };
+        localStorage.setItem('pixelDungeonSave', JSON.stringify(data));
+        this.ui.showToast("Game Saved");
+    }
+    gameOver() {
+        this.state = 'GAMEOVER'; document.getElementById('ui-layer').classList.add('hidden'); document.getElementById('end-screen').classList.remove('hidden'); document.getElementById('end-title').innerText = "GAME OVER"; document.getElementById('end-msg').innerText = `You reached Level ${this.level}.`; localStorage.removeItem('pixelDungeonSave');
+    }
+    levelComplete() { this.level++; this.saveGame(); this.ui.showToast(`Level ${this.level} Start!`); Audio.sfxDoor(); this.startLevel(); }
+    loop(timestamp) {
+        const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1); this.lastTime = timestamp;
+        if (this.state === 'PLAYING') { this.update(dt); this.draw(); }
+        requestAnimationFrame(t => this.loop(t));
+    }
+    update(dt) {
+        const result = this.player.update(dt, this.input, this.map, this.enemies);
+        if (result === 'complete') { this.levelComplete(); return; }
+        this.enemies.forEach(e => e.update(dt, this.player, this.map));
+        this.ui.particles.update(dt);
+        const targetCamX = this.player.x - this.canvas.width / 2;
+        const targetCamY = this.player.y - this.canvas.height / 2;
+        this.camera.x += (targetCamX - this.camera.x) * 0.1;
+        this.camera.y += (targetCamY - this.camera.y) * 0.1;
+        this.camera.x = Math.max(0, Math.min(this.camera.x, this.map.width * TILE_SIZE - this.canvas.width));
+        this.camera.y = Math.max(0, Math.min(this.camera.y, this.map.height * TILE_SIZE - this.canvas.height));
+        this.ui.updateHUD();
+    }
+    draw() {
+        this.ctx.fillStyle = '#000'; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        const cx = Math.floor(this.camera.x), cy = Math.floor(this.camera.y);
+        const startCol = Math.floor(cx / TILE_SIZE), endCol = startCol + (this.canvas.width / TILE_SIZE) + 1;
+        const startRow = Math.floor(cy / TILE_SIZE), endRow = startRow + (this.canvas.height / TILE_SIZE) + 1;
+        for (let y = startRow; y <= endRow; y++) {
+            for (let x = startCol; x <= endCol; x++) {
+                const tile = this.map.getTile(x, y); if (tile === TILE.WALL) continue;
+                const tx = x * TILE_SIZE - cx, ty = y * TILE_SIZE - cy;
+                if (tile === TILE.FLOOR) { this.ctx.fillStyle = '#444'; this.ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); this.ctx.fillStyle = '#3a3a3a'; this.ctx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4); }
+                else if (tile === TILE.DOOR) { this.ctx.fillStyle = '#f39c12'; this.ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); this.ctx.fillStyle = '#000'; this.ctx.fillRect(tx+12, ty+12, 8, 8); }
+                else if (ITEMS[tile]) { this.ctx.font = '20px serif'; this.ctx.textAlign = 'center'; this.ctx.fillText(ITEMS[tile].icon, tx + TILE_SIZE/2, ty + TILE_SIZE/1.5); }
+            }
+        }
+        this.player.draw(this.ctx, cx, cy); this.enemies.forEach(e => e.draw(this.ctx, cx, cy)); this.ui.particles.draw(this.ctx, cx, cy); this.drawMiniMap();
+    }
+    drawMiniMap() {
+        const mw = this.minimapCanvas.width, mh = this.minimapCanvas.height;
+        const tsX = mw / this.map.width, tsY = mh / this.map.height;
+        this.mmCtx.clearRect(0, 0, mw, mh);
+        for (let y = 0; y < this.map.height; y++) {
+            for (let x = 0; x < this.map.width; x++) {
+                if (this.map.getTile(x, y) !== TILE.WALL) {
+                    const px = Math.floor(this.player.x / TILE_SIZE), py = Math.floor(this.player.y / TILE_SIZE);
+                    if (Math.sqrt((px-x)**2 + (py-y)**2) < 8) { this.mmCtx.fillStyle = '#555'; this.mmCtx.fillRect(x * tsX, y * tsY, tsX, tsY); }
+                }
+            }
+        }
+        this.mmCtx.fillStyle = '#0f0'; const pmx = (this.player.x / TILE_SIZE) * tsX, pmy = (this.player.y / TILE_SIZE) * tsY; this.mmCtx.fillRect(pmx, pmy, tsX*2, tsY*2);
+    }
+}
+
+class UIManager {
+    constructor(game) {
+        this.game = game; this.hudHp = document.getElementById('ui-hp'); this.hudStm = document.getElementById('ui-stamina'); this.hudLvl = document.getElementById('ui-level'); this.invContainer = document.getElementById('ui-inventory'); this.toast = document.getElementById('toast');
+        document.getElementById('btn-start').onclick = () => { Audio.init(); this.game.startNewGame(); };
+        document.getElementById('btn-continue').onclick = () => { Audio.init(); this.game.continueGame(); };
+        document.getElementById('btn-about').onclick = () => { window.open('https://ar0236879-w.github.io/Reski-Ardiansyah/portofolio%20Reski%20Ardiansyah.html', '_blank', 'noopener'); };
+        document.getElementById('btn-reset').onclick = () => { if(confirm("Reset save data?")) { localStorage.removeItem('pixelDungeonSave'); location.reload(); } };
+    }
+    updateHUD() { this.hudHp.innerText = Math.floor(this.game.player.hp); this.hudStm.innerText = Math.floor(this.game.player.stamina); this.hudLvl.innerText = this.game.level; }
+    updateInventory() {
+        this.invContainer.innerHTML = '';
+        this.game.player.inventory.forEach((item, idx) => {
+            const div = document.createElement('div'); div.className = 'inv-slot'; div.innerText = ITEMS[item].icon; div.onclick = () => this.game.player.useItem(idx); this.invContainer.appendChild(div);
+        });
+        for(let i = this.game.player.inventory.length; i < 3; i++) { const div = document.createElement('div'); div.className = 'inv-slot'; this.invContainer.appendChild(div); }
+    }
+    showToast(msg) { this.toast.innerText = msg; this.toast.style.opacity = 1; setTimeout(() => this.toast.style.opacity = 0, 2000); }
+}
+
+const Game = new GameEngine(); window.onload = () => Game.init();
+</script>
+</body>
+</html>
